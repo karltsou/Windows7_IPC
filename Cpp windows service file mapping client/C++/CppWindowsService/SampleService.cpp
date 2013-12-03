@@ -139,6 +139,7 @@ void CSampleService::ServiceWorkerThread(void)
 		
     }
 
+	WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
 	// Prepare a message to be written to the server view.
     PWSTR pszMessage = MESSAGE;
     DWORD cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
@@ -147,7 +148,7 @@ void CSampleService::ServiceWorkerThread(void)
     memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
 
 Cleanup:
-
+	WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
     if (hMapFile)
     {
         if (pInOutView)

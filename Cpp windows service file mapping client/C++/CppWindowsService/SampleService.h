@@ -26,7 +26,7 @@
 // remainder of the name can contain any character except the backslash 
 // character (\). For more information, see:
 // http://msdn.microsoft.com/en-us/library/aa366537.aspx
-#define MAP_PREFIX          L"Local\\"
+#define MAP_PREFIX          L"Global\\"
 #define MAP_NAME            L"SampleMap"
 #define FULL_MAP_NAME       MAP_PREFIX MAP_NAME
 

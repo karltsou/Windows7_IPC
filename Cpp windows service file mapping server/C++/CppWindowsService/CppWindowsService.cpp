@@ -33,7 +33,7 @@
 #define SERVICE_NAME             L"CppWindowsService"
 
 // Displayed name of the service
-#define SERVICE_DISPLAY_NAME     L"CppWindowsService Sample Service"
+#define SERVICE_DISPLAY_NAME     L"CppWindowsService Server"
 
 // Service start options.
 #define SERVICE_START_TYPE       SERVICE_DEMAND_START

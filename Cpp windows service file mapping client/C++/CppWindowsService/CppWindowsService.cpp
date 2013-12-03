@@ -30,10 +30,10 @@
 // 
 
 // Internal name of the service
-#define SERVICE_NAME             L"CppWindowsService"
+#define SERVICE_NAME             L"CppWindowsClientService"
 
 // Displayed name of the service
-#define SERVICE_DISPLAY_NAME     L"CppWindowsService Sample Service"
+#define SERVICE_DISPLAY_NAME     L"CppWindowsService Client Service"
 
 // Service start options.
 #define SERVICE_START_TYPE       SERVICE_DEMAND_START

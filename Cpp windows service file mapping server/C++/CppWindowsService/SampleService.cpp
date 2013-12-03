@@ -102,10 +102,21 @@ void CSampleService::ServiceWorkerThread(void)
 	HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
 
+    SECURITY_ATTRIBUTES SecAttr, *pSec = 0;
+    SECURITY_DESCRIPTOR SecDesc;
+    if (InitializeSecurityDescriptor(&SecDesc, SECURITY_DESCRIPTOR_REVISION) &&
+        SetSecurityDescriptorDacl(&SecDesc, TRUE, (PACL)0, FALSE))
+    {
+      SecAttr.nLength = sizeof(SecAttr);
+      SecAttr.lpSecurityDescriptor = &SecDesc;
+      SecAttr.bInheritHandle = TRUE;
+      pSec = &SecAttr;
+    }
+
     // Create the file mapping object.
     hMapFile = CreateFileMapping(
         INVALID_HANDLE_VALUE,   // Use paging file - shared memory
-        NULL,                   // Default security attributes
+        pSec,                   // Default security attributes
         PAGE_READWRITE,         // Allow read and write access
         0,                      // High-order DWORD of file mapping max size
         MAP_SIZE,               // Low-order DWORD of file mapping max size
@@ -146,10 +157,12 @@ void CSampleService::ServiceWorkerThread(void)
 		
     }
 
+	WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
     // Read and display the content in view.
     wprintf(L"Read from the file-mapping:\n\"%s\"\n", (PWSTR)pInOutView);
 
 Cleanup:
+	WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
     if (hMapFile)
     {
         if (pInOutView)
