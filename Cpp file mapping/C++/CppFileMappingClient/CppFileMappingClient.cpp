@@ -70,11 +70,19 @@
 // must be less than the view size (VIEW_SIZE).
 #define MESSAGE             L"Message from the client process."
 
+// I/O declarification
+#include <string>
+#include <iostream>
+//#include <conio.h>
+//#include <cstdlib>
+using namespace std;
 int wmain(int argc, wchar_t* argv[])
 {
     HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
-
+    CHAR Text1[256];
+    WCHAR* Text2;
+    string s1;
     // Try to open the named file mapping identified by the map name.
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,    // Read Write access
@@ -109,8 +117,25 @@ int wmain(int argc, wchar_t* argv[])
     wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
 
 	// Prepare a message to be written to the server view.
-    PWSTR pszMessage = MESSAGE;
-    DWORD cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
+	PWSTR pszMessage;
+    DWORD cbMessage;
+	DWORD ssize = 0;
+	cout << "Enter a string that stored in share mapping object :";
+	getline(cin, s1);
+	//cout << "You entered: " << s1;
+
+	while (s1[ssize] != '\0') {
+	  Text1[ssize] = s1[ssize];
+		ssize++;
+	}
+	Text1[ssize] = '\0';
+	//wprintf(L"number of size is %d\n", ssize);
+
+	Text2 = new WCHAR[ssize];
+	// Convert char* string to a wchar_t* string.
+    mbstowcs(Text2, Text1, ssize+1);
+    pszMessage = Text2;
+    cbMessage = cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
 
 	// Write the message to the server view.
     memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);

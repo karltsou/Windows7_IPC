@@ -18,6 +18,12 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 #include <strsafe.h>
 #include <Windows.h>
 
+// I/O declarification
+#include <string>
+#include <iostream>
+#include <conio.h>
+#include <cstdlib>
+using namespace std;
 // In terminal services: The name can have a "Global\" or "Local\" prefix 
 // to explicitly create the object in the global or session namespace. The 
 // remainder of the name can contain any character except the backslash 
@@ -89,7 +95,9 @@ static int SharedMappedFileClient()
 {
 	HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
-
+    CHAR Text1[256];
+    WCHAR* Text2;
+    string s1;
     // Try to open the named file mapping identified by the map name.
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,    // Read Write access
@@ -123,9 +131,26 @@ static int SharedMappedFileClient()
     // Read and display the content in view.
     wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
 
-	// Prepare a message to be written to the server view.
-    PWSTR pszMessage = MESSAGE;
-    DWORD cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
+    // Prepare a message to be written to the server view.
+	PWSTR pszMessage;
+    DWORD cbMessage;
+	DWORD ssize = 0;
+	cout << "Enter a string that stored in share mapping object :";
+	getline(cin, s1);
+	// cout << "You entered: " << s1;
+
+	while (s1[ssize] != '\0') {
+	  Text1[ssize] = s1[ssize];
+		ssize++;
+	}
+	Text1[ssize] = '\0';
+	//wprintf(L"number of size is %d\n", ssize);
+
+	Text2 = new WCHAR[ssize];
+	// Convert char* string to a wchar_t* string.
+    mbstowcs(Text2, Text1, ssize+1);
+    pszMessage = Text2;
+    cbMessage = cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
 
 	// Write the message to the server view.
     memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);

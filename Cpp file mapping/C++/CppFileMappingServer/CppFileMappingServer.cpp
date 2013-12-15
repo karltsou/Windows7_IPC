@@ -45,6 +45,7 @@
 #pragma endregion
 
 
+
 // In terminal services: The name can have a "Global\" or "Local\"  prefix 
 // to explicitly create the object in the global or session namespace. The 
 // remainder of the name can contain any character except the backslash 
@@ -71,12 +72,20 @@
 // must be less than the view size (VIEW_SIZE).
 #define MESSAGE             L"Message from the server process."
 
+// I/O declarification
+#include <string>
+#include <iostream>
+#include <conio.h>
+#include <cstdlib>
+using namespace std;
 
 int wmain(int argc, wchar_t* argv[])
 {
     HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
-
+    CHAR Text1[256];
+    WCHAR* Text2;
+    string s1;
     // Create the file mapping object.
     hMapFile = CreateFileMapping(
         INVALID_HANDLE_VALUE,   // Use paging file - shared memory
@@ -111,8 +120,25 @@ int wmain(int argc, wchar_t* argv[])
     wprintf(L"The file view is mapped\n");
 
     // Prepare a message to be written to the view.
-    PWSTR pszMessage = MESSAGE;
-    DWORD cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
+	PWSTR pszMessage;
+    DWORD cbMessage;
+	DWORD ssize = 0;
+	cout << "Enter a string that stored in share mapping object :";
+	getline(cin, s1);
+	//cout << "You entered: " << s1;
+
+	while (s1[ssize] != '\0') {
+	  Text1[ssize] = s1[ssize];
+		ssize++;
+	}
+	Text1[ssize] = '\0';
+	//wprintf(L"number of ssize is %d\n", ssize);
+
+	Text2 = new WCHAR[ssize];
+	// Convert char* string to a wchar_t* string.
+    mbstowcs(Text2, Text1, ssize+1);
+    pszMessage = Text2;
+    cbMessage = cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
 
     // Write the message to the file-mapping view.
     memcpy_s(pInOutView, VIEW_SIZE, pszMessage, cbMessage);
