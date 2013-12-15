@@ -23,7 +23,9 @@
 #include <Windows.h>
 #pragma endregion
 
-
+// I/O declarification
+#include <iostream>
+#include <fstream>
 CSampleService::CSampleService(PWSTR pszServiceName, 
                                BOOL fCanStop, 
                                BOOL fCanShutdown, 
@@ -96,6 +98,7 @@ void CSampleService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 //
 void CSampleService::ServiceWorkerThread(void)
 {
+    std::ofstream outFile("c:\logfileServer.txt");
 	// Log a service message to the ServiceWorkerThread.
     WriteEventLogEntry(L"ServiceWorkerThread is started", EVENTLOG_INFORMATION_TYPE);
 
@@ -126,6 +129,7 @@ void CSampleService::ServiceWorkerThread(void)
 	if (hMapFile == NULL) 
         goto Cleanup;
 
+    outFile << "The file mapping is created";
     WriteEventLogEntry(L"The file mapping is created", EVENTLOG_INFORMATION_TYPE);
 
     // Map a output view of the file mapping into the address space of the current 
@@ -141,6 +145,7 @@ void CSampleService::ServiceWorkerThread(void)
 	if (pInOutView == NULL)
         goto Cleanup;
 
+    outFile << "The file view is mapped";
     WriteEventLogEntry(L"The file view is mapped", EVENTLOG_INFORMATION_TYPE);
 
 	// Prepare a message to be written to the view.
@@ -157,12 +162,15 @@ void CSampleService::ServiceWorkerThread(void)
 		
     }
 
-	WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
+    outFile << "ServiceWorkerThread is terminated";
+    WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
     // Read and display the content in view.
+    outFile << "Read from the file-mapping: " << (PWSTR)pInOutView;
     wprintf(L"Read from the file-mapping:\n\"%s\"\n", (PWSTR)pInOutView);
 
 Cleanup:
-	WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
+    outFile << "The file view is unmapped";
+    WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
     if (hMapFile)
     {
         if (pInOutView)
@@ -178,6 +186,7 @@ Cleanup:
     
 	// Signal the stopped event.
     SetEvent(m_hStoppedEvent);
+    outFile.close();
 }
 
 
