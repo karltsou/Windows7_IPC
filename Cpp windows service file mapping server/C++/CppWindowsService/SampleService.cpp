@@ -23,9 +23,6 @@
 #include <Windows.h>
 #pragma endregion
 
-// I/O declarification
-#include <iostream>
-#include <fstream>
 CSampleService::CSampleService(PWSTR pszServiceName, 
                                BOOL fCanStop, 
                                BOOL fCanShutdown, 
@@ -98,9 +95,8 @@ void CSampleService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 //
 void CSampleService::ServiceWorkerThread(void)
 {
-    std::ofstream outFile("c:\logfileServer.txt");
 	// Log a service message to the ServiceWorkerThread.
-    WriteEventLogEntry(L"ServiceWorkerThread is started", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"ServiceWorkerThread is started");
 
 	HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
@@ -129,8 +125,7 @@ void CSampleService::ServiceWorkerThread(void)
 	if (hMapFile == NULL) 
         goto Cleanup;
 
-    outFile << "The file mapping is created";
-    WriteEventLogEntry(L"The file mapping is created", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file mapping is created");
 
     // Map a output view of the file mapping into the address space of the current 
     // process.
@@ -145,8 +140,7 @@ void CSampleService::ServiceWorkerThread(void)
 	if (pInOutView == NULL)
         goto Cleanup;
 
-    outFile << "The file view is mapped";
-    WriteEventLogEntry(L"The file view is mapped", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file view is mapped");
 
 	// Prepare a message to be written to the view.
     PWSTR pszMessage = MESSAGE;
@@ -162,15 +156,11 @@ void CSampleService::ServiceWorkerThread(void)
 		
     }
 
-    outFile << "ServiceWorkerThread is terminated";
-    WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
-    // Read and display the content in view.
-    outFile << "Read from the file-mapping: " << (PWSTR)pInOutView;
-    wprintf(L"Read from the file-mapping:\n\"%s\"\n", (PWSTR)pInOutView);
+    WriteEventLogMsg(L"ServiceWorkerThread is terminated");
+	WriteEventLogMsg((PWSTR)pInOutView);
 
 Cleanup:
-    outFile << "The file view is unmapped";
-    WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file view is unmapped");
     if (hMapFile)
     {
         if (pInOutView)
@@ -186,7 +176,6 @@ Cleanup:
     
 	// Signal the stopped event.
     SetEvent(m_hStoppedEvent);
-    outFile.close();
 }
 
 

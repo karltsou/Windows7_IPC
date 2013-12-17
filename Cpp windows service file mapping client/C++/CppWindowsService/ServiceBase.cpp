@@ -559,4 +559,19 @@ void CServiceBase::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
     WriteEventLogEntry(szMessage, EVENTLOG_ERROR_TYPE);
 }
 
+//
+//   FUNCTION: CServiceBase::WriteEventLogMsg(PWSTR, DWORD)
+//
+//   PURPOSE: Log message to the Application event log.
+//
+//   PARAMETERS:
+//   * pszFunction - the function that gives the error
+//
+void CServiceBase::WriteEventLogMsg(PWSTR pszFunction)
+{
+    wchar_t szMessage[260];
+    StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+        L"Client: %s ", pszFunction);
+    WriteEventLogEntry(szMessage, EVENTLOG_INFORMATION_TYPE);
+}
 #pragma endregion

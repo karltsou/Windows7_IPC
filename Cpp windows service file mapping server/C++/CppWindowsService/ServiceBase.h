@@ -86,6 +86,8 @@ protected:
     void WriteErrorLogEntry(PWSTR pszFunction, 
         DWORD dwError = GetLastError());
 
+	// Log message to the Application event log.
+    void WriteEventLogMsg(PWSTR pszFunction);
 private:
 
     // Entry point for the service. It registers the handler function for the 

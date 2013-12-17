@@ -23,9 +23,6 @@
 #include <Windows.h>
 #pragma endregion
 
-// I/O declarification
-#include <iostream>
-#include <fstream>
 CSampleService::CSampleService(PWSTR pszServiceName, 
                                BOOL fCanStop, 
                                BOOL fCanShutdown, 
@@ -98,9 +95,8 @@ void CSampleService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 //
 void CSampleService::ServiceWorkerThread(void)
 {
-    std::ofstream outFile("c:\logfileClinet.txt");
 	// Log a service message to the ServiceWorkerThread.
-    WriteEventLogEntry(L"ServiceWorkerThread is started", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"ServiceWorkerThread is started");
 
     HANDLE hMapFile = NULL;
     PVOID pInOutView = NULL;
@@ -115,8 +111,7 @@ void CSampleService::ServiceWorkerThread(void)
     if (hMapFile == NULL)
         goto Cleanup;
 
-    outFile << "The file mapping is opened";
-    WriteEventLogEntry(L"The file mapping is opened", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file mapping is opened");
 
     // Map a input view of the file mapping into the address space of the current 
     // process.
@@ -131,12 +126,10 @@ void CSampleService::ServiceWorkerThread(void)
 	if (pInOutView == NULL)
         goto Cleanup;
 
-    outFile << "The file view is mapped";
-    WriteEventLogEntry(L"The file view is mapped", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file view is mapped");
 
 	// Read and display the content in view.
-    outFile << (L"Read from the file mapping: ") << ((PWSTR)pInOutView);
-    wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
+    WriteEventLogMsg((PWSTR)pInOutView);
 
 	// Periodically check if the service is stopping.
     while (!m_fStopping)
@@ -145,8 +138,7 @@ void CSampleService::ServiceWorkerThread(void)
 		
     }
 
-    outFile << "ServiceWorkerThread is terminated";
-    WriteEventLogEntry(L"ServiceWorkerThread is terminated", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"ServiceWorkerThread is terminated");
 	// Prepare a message to be written to the server view.
     PWSTR pszMessage = MESSAGE;
     DWORD cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
@@ -155,8 +147,7 @@ void CSampleService::ServiceWorkerThread(void)
     memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
 
 Cleanup:
-    outFile << "The file view is unmapped";
-    WriteEventLogEntry(L"The file view is unmapped", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogMsg(L"The file view is unmapped");
     if (hMapFile)
     {
         if (pInOutView)
@@ -173,7 +164,6 @@ Cleanup:
     
 	// Signal the stopped event.
     SetEvent(m_hStoppedEvent);
-    outFile.close();
 }
 
 
