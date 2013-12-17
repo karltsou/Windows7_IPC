@@ -73,8 +73,6 @@
 // I/O declarification
 #include <string>
 #include <iostream>
-//#include <conio.h>
-//#include <cstdlib>
 using namespace std;
 int wmain(int argc, wchar_t* argv[])
 {
