@@ -36,7 +36,7 @@
 #define SERVICE_DISPLAY_NAME     L"CppWindowsService Client Service"
 
 // Service start options.
-#define SERVICE_START_TYPE       SERVICE_DEMAND_START
+#define SERVICE_START_TYPE       SERVICE_AUTO_START
 
 // List of service dependencies - "dep1\0dep2\0\0"
 #define SERVICE_DEPENDENCIES     L""
