@@ -90,7 +90,7 @@ Return Value:
     NTSTATUS                       status;
     WDF_DRIVER_CONFIG              config;
     WDFDRIVER                      hDriver;
-//    PWDFDEVICE_INIT                pInit = NULL;
+    PWDFDEVICE_INIT                pInit = NULL;
     WDF_OBJECT_ATTRIBUTES          attributes;
 
     KdPrint(("Driver Frameworks NONPNP Legacy Driver Example\n"));
@@ -147,17 +147,17 @@ Return Value:
     // On Win2K system,  you will experience some delay in getting trace events
     // due to the way the ETW is activated to accept trace messages.
     //
-    //KdPrint(("NonPnp: DriverEntry: tracing enabled\n"));
+    KdPrint(("NonPnp: DriverEntry: tracing enabled\n"));
 
-    //TraceEvents(TRACE_LEVEL_VERBOSE, DBG_INIT,
-    //               "Driver Frameworks NONPNP Legacy Driver Example");
+    TraceEvents(TRACE_LEVEL_VERBOSE, DBG_INIT,
+                   "Driver Frameworks NONPNP Legacy Driver Example");
 
     //
     //
     // In order to create a control device, we first need to allocate a
     // WDFDEVICE_INIT structure and set all properties.
     //
-    /*pInit = WdfControlDeviceInitAllocate(
+    pInit = WdfControlDeviceInitAllocate(
                             hDriver,
                             &SDDL_DEVOBJ_SYS_ALL_ADM_RWX_WORLD_RW_RES_R
                             );
@@ -165,17 +165,17 @@ Return Value:
     if (pInit == NULL) {
         status = STATUS_INSUFFICIENT_RESOURCES;
         return status;
-    }*/
+    }
 
     //
     // Call NonPnpDeviceAdd to create a deviceobject to represent our
     // software device.
     //
-    //status = NonPnpDeviceAdd(hDriver, pInit);
+    status = NonPnpDeviceAdd(hDriver, pInit);
     
-	//
-	// Re-mapping userspace file-mapping object
-	//
+    //
+    // Re-mapping userspace file-mapping object
+    //
 #if defined(FILE_MAPPING)
 	InitializeGlobalAddressSpace();
 #endif
@@ -1289,10 +1289,10 @@ Return Value:
     PAGED_CODE();
 
     TraceEvents(TRACE_LEVEL_VERBOSE, DBG_INIT, "Entered NonPnpDriverUnload\n");
-
+#if defined(FILE_MAPPING)
 	if (g_hSection != NULL)
 		ZwClose(g_hSection);
-
+#endif
     return;
 }
 

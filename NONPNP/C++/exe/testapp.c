@@ -358,13 +358,13 @@ main(
             break;
         }
         Sleep(1000); // sleep for 1 sec.
-		break;
+
     } WHILE (TRUE);
 
     //
     // Close the handle to the device before unloading the driver.
     //
-    // CloseHandle ( hDevice );
+    CloseHandle ( hDevice );
 
 end:
 	if (pKSObj != NULL)
