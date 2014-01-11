@@ -63,7 +63,7 @@ protected:
     virtual void OnStop();
 
     void ServiceWorkerThread(void);
-
+    boolean ReadKernelDriverMsg(void);
 private:
 
     BOOL m_fStopping;
