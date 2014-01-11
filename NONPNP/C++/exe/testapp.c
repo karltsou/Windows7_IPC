@@ -365,14 +365,14 @@ main(
     // Close the handle to the device before unloading the driver.
     //
     CloseHandle ( hDevice );
-
+#if defined(FILE_MAPPING)
 end:
 	if (pKSObj != NULL)
 		UnmapViewOfFile(pKSObj);
 
 	if (hMap != NULL)
 		CloseHandle(hMap);
-    
+#endif
 	//
     // Unload the driver.  Ignore any errors.
     //

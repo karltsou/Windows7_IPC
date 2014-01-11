@@ -1332,7 +1332,7 @@ INT InitializeGlobalAddressSpace(VOID)
 	NTSTATUS            status;
 	PVOID               pSharedSection;
 	SIZE_T              ViewSize;
-	char MsgsToCopy[128] = "Message from kernel driver $";
+	char MsgsToCopy[128] = "Message comes from kernel driver $";
 	int i = 0;
 
 	RtlInitUnicodeString(&usSectionName, L"\\BaseNamedObjects\\SharedMemory");
@@ -1379,7 +1379,7 @@ INT InitializeGlobalAddressSpace(VOID)
 		goto error;
 	}
 
-    // fill-in string to shared memory
+    // fill-in string into shared memory
 	do {
 		if (i >= 128) 
 			break;
