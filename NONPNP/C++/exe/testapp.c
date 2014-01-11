@@ -347,12 +347,11 @@ main(
 		printf("read from Kernel driver: %s\n", (unsigned char*)pKSObj);
 #endif
 
-    DoIoctls(hDevice);
-
+//  DoIoctls(hDevice);
     do {
-        if(!DoFileReadWrite(hDevice)) {
+        /*if(!DoFileReadWrite(hDevice)) {
             break;
-        }
+        }*/
 
         if(!G_fLoop) {
             break;
