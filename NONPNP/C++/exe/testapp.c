@@ -209,10 +209,7 @@ GetCoinstallerVersion(
 }
 
 // File Mapping
-#define FILE_MAPPING
-#if defined(FILE_MAPPING)
-#define FULL_MAP_NAME       L"Global\\UserKernelSharedSection"
-#endif
+//#define FILE_MAPPING
 
 VOID __cdecl
 main(
@@ -228,7 +225,7 @@ main(
     LONG     error;
     PCHAR    coinstallerVersion;
 #if defined(FILE_MAPPING)
-	PVOID *pKSObj = NULL;
+	PVOID  pKSObj = NULL;
 	HANDLE hMap = NULL;
 	TCHAR szKSObjName[] = TEXT("Global\\SharedMemory");
 #endif
@@ -344,18 +341,23 @@ main(
 			printf("failed to MapViewOfFile() err code %d\n",GetLastError());
 			goto end;
 		}
-		printf("read from Kernel driver: %s\n", (unsigned char*)pKSObj);
+		printf("Read from kernel driver: %s\n", pKSObj);
 #endif
-
+		printf("input 'q' to unload the kernel driver & terminate process\r\n");
 //  DoIoctls(hDevice);
     do {
         /*if(!DoFileReadWrite(hDevice)) {
             break;
         }*/
 
-        if(!G_fLoop) {
-            break;
-        }
+		if (getchar() == 'q') {
+			printf("leave loop!\n");
+			break;
+		}
+
+//		if(!G_fLoop) {
+//            break;
+//        }
         Sleep(1000); // sleep for 1 sec.
 
     } WHILE (TRUE);

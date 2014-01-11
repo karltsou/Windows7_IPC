@@ -59,6 +59,7 @@ Environment:
 #if defined (FILE_MAPPING)
 // Kernel space file-mapping object to user space
 INT InitializeGlobalAddressSpace(VOID);
+INT InitializeGlobalAddressSpace2(VOID);
 // Shared object handle
 HANDLE g_hSection = NULL;
 #endif
@@ -1324,6 +1325,7 @@ PrintChars(
 }
 
 #if defined(FILE_MAPPING)
+
 INT InitializeGlobalAddressSpace(VOID)
 {
 	LARGE_INTEGER       size;
@@ -1392,5 +1394,32 @@ INT InitializeGlobalAddressSpace(VOID)
 
 error:
 	return STATUS_UNSUCCESSFUL;
+}
+
+#define MESSAGE             L"Message from the kernel driver2"
+INT InitializeGlobalAddressSpace2(void)
+{
+	PVOID sharedData = NULL;
+	SIZE_T vs = 1024;
+	HANDLE sectionHandle = NULL;
+	OBJECT_ATTRIBUTES myAttributes;
+	NTSTATUS status;
+	UNICODE_STRING sectionName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\SampleMap");
+	InitializeObjectAttributes(&myAttributes, &sectionName, (OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE), NULL, NULL);
+
+	status = ZwOpenSection(&sectionHandle, SECTION_MAP_READ | SECTION_MAP_WRITE, &myAttributes);
+	if (!NT_SUCCESS(status)) {
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	status = ZwMapViewOfSection(&sectionHandle, NtCurrentProcess(), &sharedData, 0, 65536,
+		0, &vs, ViewUnmap, 0, PAGE_READWRITE);
+	if (!NT_SUCCESS(status)) {
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	RtlFillMemory(sharedData, 10, 'a');
+
+	return STATUS_SUCCESS;
 }
 #endif
