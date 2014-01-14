@@ -162,8 +162,6 @@ void CSampleService::ServiceWorkerThread(void)
     WriteEventLogMsg(L"ServiceWorkerThread is terminated");
 	WriteEventLogMsg((PWSTR)pInOutView);
 
-    if (!ReadKernelDriverMsg())
-		WriteEventLogMsg(L"ReadKernelDriver is failed");
 Cleanup:
     WriteEventLogMsg(L"The file view is unmapped");
     if (hMapFile)
@@ -210,42 +208,4 @@ void CSampleService::OnStop()
     {
         throw GetLastError();
     }
-}
-
-//
-//   FUNCTION: CSampleService::ReadKernelDriverMsg(void)
-//
-//   PURPOSE: The function open file-mapping object that shared by kernel driver.
-//   The file-mapping object is read only and cannot be write since it's kernel allocate
-//   memory.
-//
-//   COMMENTS:
-//
-//
-boolean CSampleService::ReadKernelDriverMsg()
-{
-	PVOID pKSObj = NULL;
-	HANDLE hMap = NULL;
-	TCHAR szKSObjName[] = TEXT("Global\\SharedMemory");
-
-	hMap = OpenFileMapping(FILE_MAP_READ, FALSE, szKSObjName);
-	if (hMap == NULL) {
-		WriteEventLogMsg(L"failed to OpenFileMapping()");
-		return 0;
-	}
-
-	pKSObj = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 1024);
-	if (pKSObj == NULL) {
-		WriteEventLogMsg(L"failed to MapViewOfFile()");
-		return 0;
-	}
-	WriteEventLogMsg((PWSTR)pKSObj);
-
-	if (pKSObj != NULL)
-		UnmapViewOfFile(pKSObj);
-
-	if (hMap != NULL)
-		CloseHandle(hMap);
-
-	return 1;
 }
