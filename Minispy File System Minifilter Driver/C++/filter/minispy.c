@@ -26,6 +26,15 @@ Environment:
 MINISPY_DATA MiniSpyData;
 NTSTATUS StatusToBreakOn = 0;
 
+// Kernel driver file-mapping
+#define FILE_MAPPING
+#if defined (FILE_MAPPING)
+// Kernel space file-mapping object
+INT InitializeGlobalAddressSpace(VOID);
+// Shared object handle
+HANDLE g_hSection = NULL;
+#endif
+
 //---------------------------------------------------------------------------
 //  Function prototypes
 //---------------------------------------------------------------------------
@@ -228,6 +237,10 @@ Return Value:
         }
     }
 
+	// Kernel space file-mapping object init
+#if defined(FILE_MAPPING)
+	InitializeGlobalAddressSpace();
+#endif
     return status;
 }
 
@@ -346,6 +359,10 @@ Return Value:
     SpyEmptyOutputBufferList();
     ExDeleteNPagedLookasideList( &MiniSpyData.FreeBufferList );
 
+#if defined(FILE_MAPPING)
+	if (g_hSection != NULL)
+		ZwClose(g_hSection);
+#endif
     return STATUS_SUCCESS;
 }
 
@@ -1377,4 +1394,77 @@ Return Value:
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+#if defined(FILE_MAPPING)
+
+INT InitializeGlobalAddressSpace(VOID)
+{
+	LARGE_INTEGER       size;
+	UNICODE_STRING      usSectionName;
+	OBJECT_ATTRIBUTES   objAttributes;
+	NTSTATUS            status;
+	PVOID               pSharedSection;
+	SIZE_T              ViewSize;
+	char MsgsToCopy[128] = "Message comes from kernel filter driver $";
+	int i = 0;
+
+	RtlInitUnicodeString(&usSectionName, L"\\BaseNamedObjects\\SharedMemory");
+	InitializeObjectAttributes(
+		&objAttributes,
+		&usSectionName,
+		(OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE),
+		NULL,
+		NULL);
+
+	size.HighPart = 0;
+	size.LowPart = 1024;
+
+	status = ZwCreateSection(
+		&g_hSection,
+		(SECTION_MAP_READ | SECTION_MAP_WRITE),
+		&objAttributes,
+		&size,
+		(PAGE_READWRITE),
+		SEC_COMMIT,
+		NULL);
+
+	if (!NT_SUCCESS(status)) {
+		goto error;
+	}
+
+	/* for pSharedSection */
+	pSharedSection = NULL;
+	ViewSize = 1024;
+
+	status = ZwMapViewOfSection(
+		g_hSection,
+		ZwCurrentProcess(),
+		&pSharedSection,
+		0,
+		0,
+		0,
+		&ViewSize,
+		ViewShare,
+		0,
+		PAGE_READWRITE);
+
+	if (!NT_SUCCESS(status)) {
+		goto error;
+	}
+
+	// fill-in string into shared memory
+	do {
+		if (i >= 128)
+			break;
+		RtlFillMemory((char*)pSharedSection + i, 1, MsgsToCopy[i]);
+	} while (MsgsToCopy[i++] != '$');
+
+	((char*)pSharedSection)[--i] = '\0';
+
+	return STATUS_SUCCESS;
+
+error:
+	return STATUS_UNSUCCESSFUL;
+}
+
+#endif
 
