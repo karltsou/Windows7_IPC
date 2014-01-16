@@ -42,6 +42,7 @@ using namespace std;
 // VIEW_SIZE is 0, the mapping extends from the offset (VIEW_OFFSET) to the 
 // end of the file mapping.
 #define VIEW_SIZE           1024
+#define FILE_MAPPING_KERNELDRIVER
 
 // Unicode string message to be written to the mapped view. Its size in byte 
 // must be less than the view size (VIEW_SIZE).
@@ -98,6 +99,25 @@ static int SharedMappedFileClient()
     CHAR Text1[256];
     WCHAR* Text2;
     string s1;
+#if defined(FILE_MAPPING_KERNELDRIVER)
+	PVOID  pKSObj = NULL;
+	HANDLE hMap = NULL;
+	TCHAR szKSObjName[] = TEXT("Global\\SharedMemory");
+
+	hMap = OpenFileMapping(FILE_MAP_READ, FALSE, szKSObjName);
+	if (hMap == NULL) {
+		printf("failed to OpenFileMapping() err code %d\n", GetLastError());
+		goto Cleanup;
+	}
+	wprintf(L"The kernel file mapping (%s) is opened\n", szKSObjName);
+
+	pKSObj = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 1024);
+	if (pKSObj == NULL) {
+		printf("failed to MapViewOfFile() err code %d\n", GetLastError());
+		goto Cleanup;
+	}
+	printf("Read from kernel driver: %s\n", pKSObj);
+#endif
     // Try to open the named file mapping identified by the map name.
     hMapFile = OpenFileMapping(
         FILE_MAP_ALL_ACCESS,    // Read Write access
@@ -135,10 +155,14 @@ static int SharedMappedFileClient()
 	PWSTR pszMessage;
     DWORD cbMessage;
 	DWORD ssize = 0;
+#if defined(FILE_MAPPING_KERNELDRIVER)
+	char *p = (char *)pKSObj;
+	s1 = p;
+#else
 	cout << "Enter a string that stored in share mapping object :";
 	getline(cin, s1);
 	// cout << "You entered: " << s1;
-
+#endif
 	while (s1[ssize] != '\0') {
 	  Text1[ssize] = s1[ssize];
 		ssize++;
