@@ -70,6 +70,7 @@
 // must be less than the view size (VIEW_SIZE).
 #define MESSAGE             L"Message from the client process."
 #define FILE_MAPPING_KERNELDRIVER
+
 // I/O declarification
 #include <string>
 #include <iostream>

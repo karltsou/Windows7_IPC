@@ -57,9 +57,11 @@ Environment:
 // Kernel driver file-mapping
 #define FILE_MAPPING
 #if defined (FILE_MAPPING)
-// Kernel space file-mapping object to user space
+// Kernel space file-mapping object
 INT InitializeGlobalAddressSpace(VOID);
+#if defined(FILE_MAPPING2)
 INT InitializeGlobalAddressSpace2(VOID);
+#endif
 // Shared object handle
 HANDLE g_hSection = NULL;
 #endif
@@ -174,9 +176,7 @@ Return Value:
     //
     status = NonPnpDeviceAdd(hDriver, pInit);
     
-    //
-    // Re-mapping userspace file-mapping object
-    //
+    // Kernel space file-mapping object init
 #if defined(FILE_MAPPING)
 	InitializeGlobalAddressSpace();
 #endif
@@ -1334,7 +1334,7 @@ INT InitializeGlobalAddressSpace(VOID)
 	NTSTATUS            status;
 	PVOID               pSharedSection;
 	SIZE_T              ViewSize;
-	char MsgsToCopy[128] = "Message comes from kernel driver $";
+	char MsgsToCopy[128] = "Message comes from kernel nonpnp driver $";
 	int i = 0;
 
 	RtlInitUnicodeString(&usSectionName, L"\\BaseNamedObjects\\SharedMemory");
@@ -1395,8 +1395,7 @@ INT InitializeGlobalAddressSpace(VOID)
 error:
 	return STATUS_UNSUCCESSFUL;
 }
-
-#define MESSAGE             L"Message from the kernel driver2"
+#if defined(FILE_MAPPING2)
 INT InitializeGlobalAddressSpace2(void)
 {
 	PVOID sharedData = NULL;
@@ -1404,9 +1403,11 @@ INT InitializeGlobalAddressSpace2(void)
 	HANDLE sectionHandle = NULL;
 	OBJECT_ATTRIBUTES myAttributes;
 	NTSTATUS status;
-	UNICODE_STRING sectionName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\SampleMap");
-	InitializeObjectAttributes(&myAttributes, &sectionName, (OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE), NULL, NULL);
+	UNICODE_STRING sectionName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\SharedMemory");
+	char MsgsToCopy[128] = "Message comes from kernel driver2 $";
+	int i = 0;
 
+	InitializeObjectAttributes(&myAttributes, &sectionName, (OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE), NULL, NULL);
 	status = ZwOpenSection(&sectionHandle, SECTION_MAP_READ | SECTION_MAP_WRITE, &myAttributes);
 	if (!NT_SUCCESS(status)) {
 		return STATUS_UNSUCCESSFUL;
@@ -1418,8 +1419,16 @@ INT InitializeGlobalAddressSpace2(void)
 		return STATUS_UNSUCCESSFUL;
 	}
 
-	RtlFillMemory(sharedData, 10, 'a');
+	// fill-in string into shared memory
+	do {
+		if (i >= 128)
+			break;
+		RtlFillMemory((char*)sharedData + i, 1, MsgsToCopy[i]);
+	} while (MsgsToCopy[i++] != '$');
+
+	((char*)sharedData)[--i] = '\0';
 
 	return STATUS_SUCCESS;
 }
+#endif
 #endif
