@@ -41,6 +41,7 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 #define NUM_PARAMS                40
 
 #define MINISPY_NAME            L"MiniSpy"
+#define EXP_A
 
 DWORD
 InterpretCommand (
@@ -156,6 +157,7 @@ Return Value:
     printf("    %ws\n", buffer);
 }
 
+
 //
 //  Main uses a loop which has an assignment in the while 
 //  conditional statement. Suppress the compiler's warning.
@@ -188,7 +190,10 @@ Return Value:
     HANDLE thread = NULL;
     LOG_CONTEXT context;
     CHAR inputChar;
-
+#if defined(EXP_A)
+	ULONG threadId2;
+	HANDLE thread2 = NULL;
+#endif
     //
     //  Initialize handle in case of error
     //
@@ -270,20 +275,39 @@ Return Value:
         DisplayError( result );
         goto Main_Exit;
     }
+#if defined(EXP_A)
+	//
+	// Create the thread to read message that are sending
+	// from MiniSpy.sys.
+	//
+	printf("Creating read message thread\n");
+	thread2 = CreateThread(NULL,
+		0,
+		ReadMsgFromMinispy,
+		(LPVOID)&context,
+		0,
+		&threadId2);
 
+	if (!thread2) {
+		result = GetLastError();
+		printf("Could not create logging thread: %d\n", result);
+		DisplayError(result);
+		goto Main_Exit;
+	}
+#endif
     //
     // Check to see what devices we are attached to from
     // previous runs of this program.
     //
 
-    ListDevices();
+    //ListDevices();
 
     //
     //  Process commands from the user
     //
 
-    printf( "\nHit [Enter] to begin command mode...\n\n" );
-    fflush( stdout );
+    //printf( "\nHit [Enter] to begin command mode...\n\n" );
+    //fflush( stdout );
 
     //
     //  set screen logging state
@@ -431,7 +455,12 @@ Main_Exit:
 
         CloseHandle( thread );
     }
+#if defined(EXP_A)
+	if (thread2) {
 
+		CloseHandle( thread2 );
+	}
+#endif
     if (INVALID_HANDLE_VALUE != port) {
         CloseHandle( port );
     }

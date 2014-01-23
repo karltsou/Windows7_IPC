@@ -30,7 +30,7 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 #define TIME_ERROR         "time error"
 
 #define POLL_INTERVAL   200     // 200 milliseconds
-
+#define EXP_A
 BOOLEAN
 TranslateFileTag(
     _In_ PLOG_RECORD logRecord
@@ -91,7 +91,6 @@ Return Value:
     return FALSE;
 }
 
-
 DWORD
 WINAPI
 RetrieveLogRecords(
@@ -116,197 +115,199 @@ Return Value:
 --*/
 {
     PLOG_CONTEXT context = (PLOG_CONTEXT)lpParameter;
-    DWORD bytesReturned = 0;
-    DWORD used;
-    PVOID alignedBuffer[BUFFER_SIZE/sizeof( PVOID )];
-    PCHAR buffer = (PCHAR) alignedBuffer;
-    HRESULT hResult;
-    PLOG_RECORD pLogRecord;
-    PRECORD_DATA pRecordData;
-    COMMAND_MESSAGE commandMessage;
+    //DWORD bytesReturned = 0;
+    //DWORD used;
+    //PVOID alignedBuffer[BUFFER_SIZE/sizeof( PVOID )];
+    //PCHAR buffer = (PCHAR) alignedBuffer;
+    //HRESULT hResult;
+    //PLOG_RECORD pLogRecord;
+    //PRECORD_DATA pRecordData;
+    //COMMAND_MESSAGE commandMessage;
 
-    //printf("Log: Starting up\n");
+	printf("Log: Starting up context 0x%x\n", context);
 
-#pragma warning(push)
-#pragma warning(disable:4127) // conditional expression is constant
+	return 0;
 
-    while (TRUE) {
-
-#pragma warning(pop)
-
-        //
-        //  Check to see if we should shut down.
-        //
-
-        if (context->CleaningUp) {
-
-            break;
-        }
-
-        //
-        //  Request log data from MiniSpy.
-        //
-
-        commandMessage.Command = GetMiniSpyLog;
-
-        hResult = FilterSendMessage( context->Port,
-                                     &commandMessage,
-                                     sizeof( COMMAND_MESSAGE ),
-                                     buffer,
-                                     sizeof(alignedBuffer),
-                                     &bytesReturned );
-
-        if (IS_ERROR( hResult )) {
-
-            if (HRESULT_FROM_WIN32( ERROR_INVALID_HANDLE ) == hResult) {
-
-                printf( "The kernel component of minispy has unloaded. Exiting\n" );
-                ExitProcess( 0 );
-            } else {
-
-                if (hResult != HRESULT_FROM_WIN32( ERROR_NO_MORE_ITEMS )) {
-
-                    printf( "UNEXPECTED ERROR received: %x\n", hResult );
-                }
-
-                Sleep( POLL_INTERVAL );
-            }
-
-            continue;
-        }
-
-        //
-        //  Buffer is filled with a series of LOG_RECORD structures, one
-        //  right after another.  Each LOG_RECORD says how long it is, so
-        //  we know where the next LOG_RECORD begins.
-        //
-
-        pLogRecord = (PLOG_RECORD) buffer;
-        used = 0;
-
-        //
-        //  Logic to write record to screen and/or file
-        //
-
-        for (;;) {
-
-            if (used+FIELD_OFFSET(LOG_RECORD,Name) > bytesReturned) {
-
-                break;
-            }
-
-            if (pLogRecord->Length < (sizeof(LOG_RECORD)+sizeof(WCHAR))) {
-
-                printf( "UNEXPECTED LOG_RECORD->Length: length=%d expected>=%d\n",
-                        pLogRecord->Length,
-                        (sizeof(LOG_RECORD)+sizeof(WCHAR)));
-
-                break;
-            }
-
-            used += pLogRecord->Length;
-
-            if (used > bytesReturned) {
-
-                printf( "UNEXPECTED LOG_RECORD size: used=%d bytesReturned=%d\n",
-                        used,
-                        bytesReturned);
-
-                break;
-            }
-
-            pRecordData = &pLogRecord->Data;
-
-            //
-            //  See if a reparse point entry
-            //
-
-            if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FILETAG)) {
-
-                if (!TranslateFileTag( pLogRecord )){
-
-                    //
-                    // If this is a reparse point that can't be interpreted, move on.
-                    //
-
-                    pLogRecord = (PLOG_RECORD)Add2Ptr(pLogRecord,pLogRecord->Length);
-                    continue;
-                }
-            }
-
-            if (context->LogToScreen) {
-
-                ScreenDump( pLogRecord->SequenceNumber,
-                            pLogRecord->Name,
-                            pRecordData );
-            }
-
-            if (context->LogToFile) {
-
-                FileDump( pLogRecord->SequenceNumber,
-                          pLogRecord->Name,
-                          pRecordData,
-                          context->OutputFile );
-            }
-
-            //
-            //  The RecordType could also designate that we are out of memory
-            //  or hit our program defined memory limit, so check for these
-            //  cases.
-            //
-
-            if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FLAG_OUT_OF_MEMORY)) {
-
-                if (context->LogToScreen) {
-
-                    printf( "M:  %08X System Out of Memory\n",
-                            pLogRecord->SequenceNumber );
-                }
-
-                if (context->LogToFile) {
-
-                    fprintf( context->OutputFile,
-                             "M:\t0x%08X\tSystem Out of Memory\n",
-                             pLogRecord->SequenceNumber );
-                }
-
-            } else if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FLAG_EXCEED_MEMORY_ALLOWANCE)) {
-
-                if (context->LogToScreen) {
-
-                    printf( "M:  %08X Exceeded Mamimum Allowed Memory Buffers\n",
-                            pLogRecord->SequenceNumber );
-                }
-
-                if (context->LogToFile) {
-
-                    fprintf( context->OutputFile,
-                             "M:\t0x%08X\tExceeded Mamimum Allowed Memory Buffers\n",
-                             pLogRecord->SequenceNumber );
-                }
-            }
-
-            //
-            // Move to next LOG_RECORD
-            //
-
-            pLogRecord = (PLOG_RECORD)Add2Ptr(pLogRecord,pLogRecord->Length);
-        }
-
-        //
-        //  If we didn't get any data, pause for 1/2 second
-        //
-
-        if (bytesReturned == 0) {
-
-            Sleep( POLL_INTERVAL );
-        }
-    }
-
-    printf( "Log: Shutting down\n" );
-    ReleaseSemaphore( context->ShutDown, 1, NULL );
-    printf( "Log: All done\n" );
-    return 0;
+//#pragma warning(push)
+//#pragma warning(disable:4127) // conditional expression is constant
+//
+//    while (TRUE) {
+//
+//#pragma warning(pop)
+//
+//        //
+//        //  Check to see if we should shut down.
+//        //
+//
+//        if (context->CleaningUp) {
+//
+//            break;
+//        }
+//
+//        //
+//        //  Request log data from MiniSpy.
+//        //
+//
+//        commandMessage.Command = GetMiniSpyLog;
+//
+//        hResult = FilterSendMessage( context->Port,
+//                                     &commandMessage,
+//                                     sizeof( COMMAND_MESSAGE ),
+//                                     buffer,
+//                                     sizeof(alignedBuffer),
+//                                     &bytesReturned );
+//
+//        if (IS_ERROR( hResult )) {
+//
+//            if (HRESULT_FROM_WIN32( ERROR_INVALID_HANDLE ) == hResult) {
+//
+//                printf( "The kernel component of minispy has unloaded. Exiting\n" );
+//                ExitProcess( 0 );
+//            } else {
+//
+//                if (hResult != HRESULT_FROM_WIN32( ERROR_NO_MORE_ITEMS )) {
+//
+//                    printf( "UNEXPECTED ERROR received: %x\n", hResult );
+//                }
+//
+//                Sleep( POLL_INTERVAL );
+//            }
+//
+//            continue;
+//        }
+//
+//        //
+//        //  Buffer is filled with a series of LOG_RECORD structures, one
+//        //  right after another.  Each LOG_RECORD says how long it is, so
+//        //  we know where the next LOG_RECORD begins.
+//        //
+//
+//        pLogRecord = (PLOG_RECORD) buffer;
+//        used = 0;
+//
+//        //
+//        //  Logic to write record to screen and/or file
+//        //
+//
+//        for (;;) {
+//
+//            if (used+FIELD_OFFSET(LOG_RECORD,Name) > bytesReturned) {
+//
+//                break;
+//            }
+//
+//            if (pLogRecord->Length < (sizeof(LOG_RECORD)+sizeof(WCHAR))) {
+//
+//                printf( "UNEXPECTED LOG_RECORD->Length: length=%d expected>=%d\n",
+//                        pLogRecord->Length,
+//                        (sizeof(LOG_RECORD)+sizeof(WCHAR)));
+//
+//                break;
+//            }
+//
+//            used += pLogRecord->Length;
+//
+//            if (used > bytesReturned) {
+//
+//                printf( "UNEXPECTED LOG_RECORD size: used=%d bytesReturned=%d\n",
+//                        used,
+//                        bytesReturned);
+//
+//                break;
+//            }
+//
+//            pRecordData = &pLogRecord->Data;
+//
+//            //
+//            //  See if a reparse point entry
+//            //
+//
+//            if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FILETAG)) {
+//
+//                if (!TranslateFileTag( pLogRecord )){
+//
+//                    //
+//                    // If this is a reparse point that can't be interpreted, move on.
+//                    //
+//
+//                    pLogRecord = (PLOG_RECORD)Add2Ptr(pLogRecord,pLogRecord->Length);
+//                    continue;
+//                }
+//            }
+//
+//            if (context->LogToScreen) {
+//
+//                ScreenDump( pLogRecord->SequenceNumber,
+//                            pLogRecord->Name,
+//                            pRecordData );
+//            }
+//
+//            if (context->LogToFile) {
+//
+//                FileDump( pLogRecord->SequenceNumber,
+//                          pLogRecord->Name,
+//                          pRecordData,
+//                          context->OutputFile );
+//            }
+//
+//            //
+//            //  The RecordType could also designate that we are out of memory
+//            //  or hit our program defined memory limit, so check for these
+//            //  cases.
+//            //
+//
+//            if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FLAG_OUT_OF_MEMORY)) {
+//
+//                if (context->LogToScreen) {
+//
+//                    printf( "M:  %08X System Out of Memory\n",
+//                            pLogRecord->SequenceNumber );
+//                }
+//
+//                if (context->LogToFile) {
+//
+//                    fprintf( context->OutputFile,
+//                             "M:\t0x%08X\tSystem Out of Memory\n",
+//                             pLogRecord->SequenceNumber );
+//                }
+//
+//            } else if (FlagOn(pLogRecord->RecordType,RECORD_TYPE_FLAG_EXCEED_MEMORY_ALLOWANCE)) {
+//
+//                if (context->LogToScreen) {
+//
+//                    printf( "M:  %08X Exceeded Mamimum Allowed Memory Buffers\n",
+//                            pLogRecord->SequenceNumber );
+//                }
+//
+//                if (context->LogToFile) {
+//
+//                    fprintf( context->OutputFile,
+//                             "M:\t0x%08X\tExceeded Mamimum Allowed Memory Buffers\n",
+//                             pLogRecord->SequenceNumber );
+//                }
+//            }
+//
+//            //
+//            // Move to next LOG_RECORD
+//            //
+//
+//            pLogRecord = (PLOG_RECORD)Add2Ptr(pLogRecord,pLogRecord->Length);
+//        }
+//
+//        //
+//        //  If we didn't get any data, pause for 1/2 second
+//        //
+//
+//        if (bytesReturned == 0) {
+//
+//            Sleep( POLL_INTERVAL );
+//        }
+//    }
+//
+//    printf( "Log: Shutting down\n" );
+//    ReleaseSemaphore( context->ShutDown, 1, NULL );
+//    printf( "Log: All done\n" );
+//    return 0;
 }
 
 
@@ -1190,4 +1191,146 @@ Return Value:
                   NULL,
                   FALSE );
 }
+#if defined(EXP_A)
+DWORD
+WINAPI
+ReadMsgFromMinispy(
+_In_ LPVOID lpParameter
+)
+{
+	PLOG_CONTEXT context = (PLOG_CONTEXT)lpParameter;
+	DWORD bytesReturned = 0;
+	HRESULT hResult;
+	COMMAND_MESSAGE commandMessage;
+	STATE_MACHINE sm, *pSM, buffer;
+	MINISPY_MESSAGE Minispy;
+	TCHAR *string;
 
+	printf("ReadMsgFromMinispy is up\n");
+
+	//
+	// Initially inform Minispy to get starting a kernel thread
+	//
+	commandMessage.Command = GetMiniSpySMStart;
+
+	sm.State     = MiniSpy_Init;
+	sm.NextState = MiniSpy_Init;
+	sm.Log       = MiniSpy_None;
+
+	memset(&Minispy.FilterMsgHeader, 0, sizeof(FILTER_MESSAGE_HEADER));
+	memset(Minispy.MessageBuffer, ' ', sizeof(TCHAR[128]));
+
+#pragma warning(push)
+#pragma warning(disable:4127) // conditional expression is constant
+
+	while (TRUE) {
+
+#pragma warning(pop)
+
+		//
+		//  Check to see if we should shut down.
+		//
+		if (context->CleaningUp) {
+
+			break;
+		}
+
+		printf("GetMsg: FilterSendMessage\n");
+
+		//
+		//  Request log data from MiniSpy.
+		//
+		hResult = FilterSendMessage(context->Port,
+			&commandMessage,
+			sizeof(COMMAND_MESSAGE),
+			(LPVOID)&buffer,
+			sizeof(STATE_MACHINE),
+			&bytesReturned);
+
+		if (IS_ERROR(hResult)) {
+
+			if (HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE) == hResult) {
+
+				printf("GetMsg: The kernel component of minispy has unloaded. Exiting\n");
+				break;
+			}
+			else {
+
+				if (hResult != HRESULT_FROM_WIN32(ERROR_NO_MORE_ITEMS)) {
+
+					printf("GetMsg: UNEXPECTED ERROR received: %x\n", hResult);
+				}
+
+				Sleep(POLL_INTERVAL);
+			}
+
+			continue;
+		}
+
+		//
+		// Ask for Minispay State Machine
+		//
+		pSM = (STATE_MACHINE *)&buffer;
+		sm.State = pSM->State;
+		sm.NextState = pSM->NextState;
+
+		printf("GetMsg: Minispy SM [ %d ]\n", pSM->State);
+		printf("GetMsg: Minispy SM Next [ %d ]\n", pSM->NextState);
+		printf("GetMsg: Minispy SM LOG [ %d ]\n", pSM->Log);
+
+
+		if (sm.State == MiniSpy_Stop) {
+			//
+			// Considering an unexpected condition in Minispy system thread
+			//
+			printf("GetMsg: Try to terminated itself\n");
+			break;
+		}
+
+		//
+		// Get Message from Minispy
+		//
+		hResult = FilterGetMessage(context->Port,
+			(PFILTER_MESSAGE_HEADER)&Minispy.FilterMsgHeader,
+			sizeof(MINISPY_MESSAGE),
+			NULL);
+
+		if (IS_ERROR(hResult)) {
+
+			if (HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE) == hResult) {
+
+				printf("GetMsg: The kernel component of minispy has unloaded. Exiting\n");
+				break;
+			}
+			else {
+
+				if (hResult != HRESULT_FROM_WIN32(ERROR_NO_MORE_ITEMS)) {
+
+					printf("GetMsg: UNEXPECTED ERROR received: 0x%x\n", hResult);
+				}
+
+				Sleep(POLL_INTERVAL);
+			}
+
+			commandMessage.Command = GetMiniSpySMState;
+
+			continue;
+		}
+
+		string = Minispy.MessageBuffer;
+		printf("GetMsg: Message from Minispy '%s'\n",string);
+
+		//
+		// Keep updating Minispy SM
+		//
+		commandMessage.Command = GetMiniSpySMState;
+
+		Sleep(POLL_INTERVAL);
+	}
+
+	printf("GetMsg: Shutting down\n");
+	ReleaseSemaphore(context->ShutDown, 1, NULL);
+	printf("GetMsg: All done\n");
+	return 0;
+}
+#endif

@@ -18,6 +18,7 @@ Environment:
 
 #include "mspyKern.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 //
 //  Global variables
@@ -26,14 +27,13 @@ Environment:
 MINISPY_DATA MiniSpyData;
 NTSTATUS StatusToBreakOn = 0;
 
-// Kernel driver file-mapping
-#define FILE_MAPPING
-#if defined (FILE_MAPPING)
-// Kernel space file-mapping object
-INT InitializeGlobalAddressSpace(VOID);
-// Shared object handle
-HANDLE g_hSection = NULL;
+#define EXP_A
+#if defined (EXP_A)
+HANDLE gthread;
+KSTART_ROUTINE MinispySendMsg;
+STATE_MACHINE sm;
 #endif
+
 
 //---------------------------------------------------------------------------
 //  Function prototypes
@@ -237,10 +237,6 @@ Return Value:
         }
     }
 
-	// Kernel space file-mapping object init
-#if defined(FILE_MAPPING)
-	InitializeGlobalAddressSpace();
-#endif
     return status;
 }
 
@@ -283,6 +279,7 @@ Return Value
 
     FLT_ASSERT( MiniSpyData.ClientPort == NULL );
     MiniSpyData.ClientPort = ClientPort;
+
     return STATUS_SUCCESS;
 }
 
@@ -316,6 +313,24 @@ Return value
     //
 
     FltCloseClientPort( MiniSpyData.Filter, &MiniSpyData.ClientPort );
+
+#if defined (EXP_A)
+	//
+	// Update State Machine.
+	// System thred will ready for termination.
+	//
+	sm.State = MiniSpy_Stop;
+	sm.NextState = MiniSpy_Init;
+	sm.Log = MiniSpy_SysThd_Stopping;
+
+	//
+	// System thread handle need to be cloased.
+	//
+	if (gthread) {
+		ZwClose(gthread);
+		gthread = NULL;
+	}
+#endif
 }
 
 NTSTATUS
@@ -359,10 +374,6 @@ Return Value:
     SpyEmptyOutputBufferList();
     ExDeleteNPagedLookasideList( &MiniSpyData.FreeBufferList );
 
-#if defined(FILE_MAPPING)
-	if (g_hSection != NULL)
-		ZwClose(g_hSection);
-#endif
     return STATUS_SUCCESS;
 }
 
@@ -437,6 +448,11 @@ Return Value:
     MINISPY_COMMAND command;
     NTSTATUS status;
 
+#if defined (EXP_A)
+	NTSTATUS ntstatus;
+	ULONG access;
+	STATE_MACHINE *pSM;
+#endif
     PAGED_CODE();
 
     UNREFERENCED_PARAMETER( ConnectionCookie );
@@ -585,6 +601,113 @@ Return Value:
                 *ReturnOutputBufferLength = sizeof( MINISPYVER );
                 status = STATUS_SUCCESS;
                 break;
+
+#if defined(EXP_A)
+			case GetMiniSpySMStart:
+
+				//
+				//  Return as many log records as can fit into the OutputBuffer
+				//
+
+				if ((OutputBuffer == NULL) || (OutputBufferSize == 0)) {
+
+					status = STATUS_INVALID_PARAMETER;
+					break;
+				}
+
+				//
+				//  System thread creating & handling message delivery to user-mode app
+				//  via FltSendMessage. SM defualt Initialization
+				//
+				pSM = (STATE_MACHINE *)OutputBuffer;
+
+				if (gthread == NULL) {
+
+					sm.State = pSM->State = MiniSpy_Init;
+					sm.NextState = pSM->NextState = MiniSpy_Init;
+
+					access = (SYNCHRONIZE | DELETE);
+					ntstatus = PsCreateSystemThread(
+						&gthread,
+						access,          // _In_ ULONG DesiredAccess,
+						NULL,            // _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
+						NULL,            // HANDLE ProcessHandle,
+						NULL,            // _Out_opt_  PCLIENT_ID ClientId,
+						MinispySendMsg,  // _In_       PKSTART_ROUTINE StartRoutine,
+						NULL             // _In_opt_   PVOID StartContext
+						);
+
+                    //
+					// System thread creation is failed.
+					//
+					if (ntstatus != STATUS_SUCCESS) {
+						sm.Log = pSM->Log = MiniSpy_SysThd_Create_Failed;
+					}
+					else {
+						//
+						// System thread creation is successfully.
+						// Move to NEXT state
+						//
+						sm.State = pSM->State = MiniSpy_Start;
+						sm.NextState = pSM->NextState = MiniSpy_Stop;
+						sm.Log = pSM->Log = MiniSpy_SysThd_Starting;
+					}
+				}
+
+				*ReturnOutputBufferLength = sizeof(STATE_MACHINE);
+				status = STATUS_SUCCESS;
+				break;
+
+			case GetMiniSpySMStop:
+
+				//
+				//  Return as many log records as can fit into the OutputBuffer
+				//
+
+				if ((OutputBuffer == NULL) || (OutputBufferSize == 0)) {
+
+					status = STATUS_INVALID_PARAMETER;
+					break;
+				}
+
+				//
+				//  Protect access to raw user-mode output buffer with an
+				//  exception handler
+				//
+				pSM = (STATE_MACHINE *)OutputBuffer;
+				sm.State = pSM->State = MiniSpy_Stop;
+				sm.NextState = pSM->NextState = MiniSpy_Start;
+				sm.Log = pSM->Log = MiniSpy_SysThd_Stopping;
+
+				*ReturnOutputBufferLength = sizeof(STATE_MACHINE);
+				status = STATUS_SUCCESS;
+				break;
+
+			case GetMiniSpySMState:
+
+				//
+				//  Return as many log records as can fit into the OutputBuffer
+				//
+
+				if ((OutputBuffer == NULL) || (OutputBufferSize == 0)) {
+
+					status = STATUS_INVALID_PARAMETER;
+					break;
+				}
+
+				//
+				//  Protect access to raw user-mode output buffer with an
+				//  exception handler
+				//
+				pSM = (STATE_MACHINE *)OutputBuffer;
+				pSM->State = sm.State;
+				pSM->NextState = sm.NextState;
+				pSM->Log = sm.Log;
+
+				*ReturnOutputBufferLength = sizeof(STATE_MACHINE);
+				status = STATUS_SUCCESS;
+				break;
+#endif
 
             default:
                 status = STATUS_INVALID_PARAMETER;
@@ -1394,77 +1517,134 @@ Return Value:
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-#if defined(FILE_MAPPING)
-
-INT InitializeGlobalAddressSpace(VOID)
+#if defined (EXP_A)
+VOID MinispySendMsg
+(
+_In_  PVOID StartContext
+)
 {
-	LARGE_INTEGER       size;
-	UNICODE_STRING      usSectionName;
-	OBJECT_ATTRIBUTES   objAttributes;
-	NTSTATUS            status;
-	PVOID               pSharedSection;
-	SIZE_T              ViewSize;
-	char MsgsToCopy[128] = "Message comes from kernel filter driver $";
-	int i = 0;
+	MINISPY_MESSAGE Minispy;
+	//TCHAR tcReplayBuffer[128];
+	//ULONG ReplayLength;
+	TCHAR MsgToCopy[] = " Message from filter driver";
+	NTSTATUS status;
+	BOOLEAN bStart = TRUE;
+	LARGE_INTEGER timeout;
+	MINISPY_STATE_LOG smLog;
+	UINT16 i = 0;
+	TCHAR tag = '0';
 
-	RtlInitUnicodeString(&usSectionName, L"\\BaseNamedObjects\\SharedMemory");
-	InitializeObjectAttributes(
-		&objAttributes,
-		&usSectionName,
-		(OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE),
-		NULL,
-		NULL);
+	//
+	// Make compiler happy.
+	//
+	StartContext = 0;
 
-	size.HighPart = 0;
-	size.LowPart = 1024;
+	//
+	// Set default 10000000 * 100 nanoseconds time-out
+	// units of 100 nanoseconds
+	timeout.LowPart = 20000000;
 
-	status = ZwCreateSection(
-		&g_hSection,
-		(SECTION_MAP_READ | SECTION_MAP_WRITE),
-		&objAttributes,
-		&size,
-		(PAGE_READWRITE),
-		SEC_COMMIT,
-		NULL);
+	//
+	// System Thread is up.
+	//
+	sm.Log = smLog = MiniSpy_SysThd_Started;
 
-	if (!NT_SUCCESS(status)) {
-		goto error;
-	}
+	//
+	// Empty Minispy
+	//
+	memset(&Minispy.FilterMsgHeader, 0, sizeof(FILTER_MESSAGE_HEADER));
+	memset(Minispy.MessageBuffer, ' ', sizeof(TCHAR[128]));
+//#pragma warning(push)
+//#pragma warning(disable:4127) // conditional expression is constant
 
-	/* for pSharedSection */
-	pSharedSection = NULL;
-	ViewSize = 1024;
+	while (bStart) {
 
-	status = ZwMapViewOfSection(
-		g_hSection,
-		ZwCurrentProcess(),
-		&pSharedSection,
-		0,
-		0,
-		0,
-		&ViewSize,
-		ViewShare,
-		0,
-		PAGE_READWRITE);
+//#pragma warning(pop)
+		//
+		// Updating State Machine.
+		//
+		switch (sm.State)
+		{
 
-	if (!NT_SUCCESS(status)) {
-		goto error;
-	}
+		case MiniSpy_Start :
 
-	// fill-in string into shared memory
-	do {
-		if (i >= 128)
+			sm.Log = smLog;
+
 			break;
-		RtlFillMemory((char*)pSharedSection + i, 1, MsgsToCopy[i]);
-	} while (MsgsToCopy[i++] != '$');
 
-	((char*)pSharedSection)[--i] = '\0';
+		case MiniSpy_Stop :
 
-	return STATUS_SUCCESS;
+			status = 0;
+			sm.Log = MiniSpy_SysThd_Stopped;
 
-error:
-	return STATUS_UNSUCCESSFUL;
+			//
+			// PsTerminateSystemThread does not return
+			// if it successfully terminates the calling thread
+			//
+			status = PsTerminateSystemThread(STATUS_DRIVER_PROCESS_TERMINATED);
+
+			//
+			// If the routine cannot terminate the thread
+			// (for example, if the thread is not a system thread),
+			// the routine returns an error NTSTATUS value.
+			//
+			if (status) {
+				sm.Log = MiniSpy_SysThd_Terminated_Failed;
+			}
+
+			break;
+
+		default :
+			break;
+		}
+
+		//
+		// Message will delivery to user-mode app via filter function call
+		//
+		tag = (TCHAR)(((int)'0') + i++);
+		memcpy(&Minispy.MessageBuffer[0], &tag, sizeof(TCHAR));
+		memcpy(&Minispy.MessageBuffer[1], MsgToCopy, sizeof(MsgToCopy));
+
+		// sm.Log = smLog = MiniSpy_SysThd_SendMsg_Sending;
+
+		//
+		// A pointer to a timeout value that specifies the total absolute or relative length of time,
+		// in units of 100 nanoseconds,
+		// for which the caller can be put into a wait state until the message is received by
+		// the user-mode application and until it receives a reply (if one is expected).
+		// Set to NULL if the caller can be put into a wait state indefinitely.
+		//
+		status = FltSendMessage(
+			MiniSpyData.Filter,
+			&MiniSpyData.ClientPort,
+			Minispy.MessageBuffer,
+			sizeof(Minispy.MessageBuffer),
+			NULL,
+			0,
+			NULL
+			);
+
+		//
+		// Updating State Machine Log.
+		//
+		if (status == STATUS_SUCCESS) {
+			smLog = MiniSpy_SysThd_SendMsg_Success;
+		}
+		else if (status == STATUS_INSUFFICIENT_RESOURCES) {
+			smLog = MiniSpy_SysThd_SendMsg_INSUFFICIENT_RESOURCES;
+		}
+		else if (status == STATUS_PORT_DISCONNECTED) {
+			smLog = MiniSpy_SysThd_SendMsg_PORT_DISCONNECTED;
+		}
+		else if (status == STATUS_TIMEOUT) {
+			smLog = MiniSpy_SysThd_SendMsg_TIMEOUT;
+		}
+		else {
+			smLog = MiniSpy_SysThd_SendMsg_UNKNOW;
+		}
+
+	}
+
 }
-
 #endif
 

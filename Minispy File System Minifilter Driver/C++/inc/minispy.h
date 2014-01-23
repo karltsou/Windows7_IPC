@@ -182,10 +182,52 @@ typedef struct _RECORD_LIST {
 
 typedef enum _MINISPY_COMMAND {
 
-    GetMiniSpyLog,
-    GetMiniSpyVersion
+	GetMiniSpyLog,
+	GetMiniSpyVersion,
+	GetMiniSpySMStart,
+	GetMiniSpySMStop,
+	GetMiniSpySMState
 
 } MINISPY_COMMAND;
+
+typedef enum _MINISPY_STATE {
+
+	MiniSpy_Init = 1,
+	MiniSpy_Start,
+	MiniSpy_Stop,
+	MiniSpy_Running,
+	MiniSpy_Suspend,
+	MiniSpy_Resume,
+} MINISPY_STATE;
+
+typedef enum _MINISPY_STATE_LOG {
+
+	MiniSpy_None = 1,
+	MiniSpy_SysThd_Create_Failed,
+	MiniSpy_SysThd_Create_Success,
+	MiniSpy_SysThd_Stopping,
+	MiniSpy_SysThd_Stopped,
+	MiniSpy_SysThd_Starting,
+	MiniSpy_SysThd_Started,
+	MiniSpy_SysThd_Terminated_Failed,
+	MiniSpy_SysThd_SendMsg_Sending,
+	MiniSpy_SysThd_SendMsg_Success,
+	MiniSpy_SysThd_SendMsg_INSUFFICIENT_RESOURCES,
+	MiniSpy_SysThd_SendMsg_PORT_DISCONNECTED,
+	MiniSpy_SysThd_SendMsg_TIMEOUT,
+	MiniSpy_SysThd_SendMsg_UNKNOW,
+} MINISPY_STATE_LOG, *PMINISPY_STATE_LOG;
+
+typedef struct _STATE_MACHINE {
+  MINISPY_STATE State;
+  MINISPY_STATE NextState;
+  MINISPY_STATE_LOG Log;
+} STATE_MACHINE, *PSTATE_MACHINE;
+
+typedef struct _MINISPY_MESSAGE {
+	FILTER_MESSAGE_HEADER FilterMsgHeader;
+	TCHAR MessageBuffer[128];
+} MINISPY_MESSAGE, *PMINISPY_MESSAGE;
 
 //
 //  Defines the command structure between the utility and the filter.

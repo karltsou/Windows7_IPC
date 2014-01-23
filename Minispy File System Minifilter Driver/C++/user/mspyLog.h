@@ -55,6 +55,10 @@ DWORD WINAPI
 RetrieveLogRecords(
     _In_ LPVOID lpParameter
     );
+DWORD WINAPI
+ReadMsgFromMinispy(
+_In_ LPVOID lpParameter
+);
 
 VOID
 FileDump (
