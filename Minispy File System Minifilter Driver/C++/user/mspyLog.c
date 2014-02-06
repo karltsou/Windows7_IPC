@@ -31,6 +31,37 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 
 #define POLL_INTERVAL   200     // 200 milliseconds
 #define EXP_A
+//
+// User Mode - File Mapping Object
+//
+#define FILE_MAPPING
+#if defined(FILE_MAPPING)
+// In terminal services: The name can have a "Global\" or "Local\"  prefix
+// to explicitly create the object in the global or session namespace. The
+// remainder of the name can contain any character except the backslash
+// character (\). For more information, see:
+// http://msdn.microsoft.com/en-us/library/aa366537.aspx
+#define MAP_PREFIX          L"Global\\"
+#define MAP_NAME            L"SampleMap"
+#define FULL_MAP_NAME       MAP_PREFIX MAP_NAME
+
+// Max size of the file mapping object.
+#define MAP_SIZE            65536
+
+// File offset where the view is to begin.
+#define OUT_VIEW_OFFSET     0
+#define IN_VIEW_OFFSET      1024
+
+// The number of bytes of a file mapping to map to the view. All bytes of the
+// view must be within the maximum size of the file mapping object (MAP_SIZE).
+// If VIEW_SIZE is 0, the mapping extends from the offset (VIEW_OFFSET) to
+// the end of the file mapping.
+#define VIEW_SIZE           1024
+
+// Unicode string message to be written to the mapped view. Its size in byte
+// must be less than the view size (VIEW_SIZE).
+#define MESSAGE             L"Message from the server process."
+#endif
 BOOLEAN
 TranslateFileTag(
     _In_ PLOG_RECORD logRecord
@@ -1205,7 +1236,12 @@ _In_ LPVOID lpParameter
 	STATE_MACHINE sm, *pSM, buffer;
 	MINISPY_MESSAGE Minispy;
 	TCHAR *string;
-
+#if defined(FILE_MAPPING)
+	HANDLE hMapFile = NULL;
+	PVOID pInOutView = NULL;
+	PWSTR pszMessage;
+	DWORD cbMessage;
+#endif
 	printf("ReadMsgFromMinispy is up\n");
 
 	//
@@ -1219,6 +1255,34 @@ _In_ LPVOID lpParameter
 
 	memset(&Minispy.FilterMsgHeader, 0, sizeof(FILTER_MESSAGE_HEADER));
 	memset(Minispy.MessageBuffer, ' ', sizeof(TCHAR[128]));
+
+#if defined(FILE_MAPPING)
+	// Try to open the named file mapping identified by the map name.
+	hMapFile = OpenFileMapping(
+		FILE_MAP_ALL_ACCESS,    // Read Write access
+		FALSE,                  // Do not inherit the name
+		FULL_MAP_NAME           // File mapping name
+		);
+	if (hMapFile == NULL)
+	{
+		wprintf(L"OpenFileMapping failed w/err 0x%08lx\n", GetLastError());
+	}
+	wprintf(L"The file mapping (%s) is opened\n", FULL_MAP_NAME);
+
+	// Map a input view of the file mapping into the address space of the current
+	// process.
+	pInOutView = MapViewOfFile(
+		hMapFile,               // Handle of the map object
+		FILE_MAP_ALL_ACCESS,    // Read Write access
+		0,                      // High-order DWORD of the file offset
+		IN_VIEW_OFFSET,         // Low-order DWORD of the file offset
+		VIEW_SIZE               // The number of bytes to map to view
+		);
+	if (pInOutView == NULL)
+	{
+		wprintf(L"MapViewOfFile failed w/err 0x%08lx\n", GetLastError());
+	}
+#endif
 
 #pragma warning(push)
 #pragma warning(disable:4127) // conditional expression is constant
@@ -1319,6 +1383,14 @@ _In_ LPVOID lpParameter
 
 		string = Minispy.MessageBuffer;
 		printf("GetMsg: Message from Minispy '%s'\n",string);
+
+        #if defined(FILE_MAPPING)
+		pszMessage = string;
+		cbMessage = cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
+
+		// Write the message to the server view.
+		memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
+        #endif
 
 		//
 		// Keep updating Minispy SM
