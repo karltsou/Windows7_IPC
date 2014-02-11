@@ -1526,7 +1526,7 @@ _In_  PVOID StartContext
 	MINISPY_MESSAGE Minispy;
 	//TCHAR tcReplayBuffer[128];
 	//ULONG ReplayLength;
-	TCHAR MsgToCopy[] = " Message from filter driver";
+	CHAR MsgToCopy[] = " Message from filter driver";
 	NTSTATUS status;
 	BOOLEAN bStart = TRUE;
 	LARGE_INTEGER timeout;
@@ -1601,7 +1601,7 @@ _In_  PVOID StartContext
 		//
 		// Message will delivery to user-mode app via filter function call
 		//
-		tag = (TCHAR)(((int)'0') + i++);
+		tag = (CHAR)(((int)'0') + i++);
 		memcpy(&Minispy.MessageBuffer[0], &tag, sizeof(TCHAR));
 		memcpy(&Minispy.MessageBuffer[1], MsgToCopy, sizeof(MsgToCopy));
 

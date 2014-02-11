@@ -16,6 +16,9 @@ Environment:
     User mode
 
 --*/
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include <DriverSpecs.h>
 _Analysis_mode_(_Analysis_code_type_user_code_)
@@ -49,8 +52,7 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 #define MAP_SIZE            65536
 
 // File offset where the view is to begin.
-#define OUT_VIEW_OFFSET     0
-#define IN_VIEW_OFFSET      1024
+#define IN_VIEW_OFFSET      0
 
 // The number of bytes of a file mapping to map to the view. All bytes of the
 // view must be within the maximum size of the file mapping object (MAP_SIZE).
@@ -61,6 +63,11 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 // Unicode string message to be written to the mapped view. Its size in byte
 // must be less than the view size (VIEW_SIZE).
 #define MESSAGE             L"Message from the server process."
+
+// Global Varialbe
+//
+HANDLE hMapFile = NULL;
+PVOID pInOutView = NULL;
 #endif
 BOOLEAN
 TranslateFileTag(
@@ -1235,12 +1242,13 @@ _In_ LPVOID lpParameter
 	COMMAND_MESSAGE commandMessage;
 	STATE_MACHINE sm, *pSM, buffer;
 	MINISPY_MESSAGE Minispy;
-	TCHAR *string;
+	CHAR *string;
 #if defined(FILE_MAPPING)
-	HANDLE hMapFile = NULL;
-	PVOID pInOutView = NULL;
+	//HANDLE hMapFile = NULL;
+	//PVOID pInOutView = NULL;
 	PWSTR pszMessage;
 	DWORD cbMessage;
+	WCHAR Text2[128];
 #endif
 	printf("ReadMsgFromMinispy is up\n");
 
@@ -1254,7 +1262,7 @@ _In_ LPVOID lpParameter
 	sm.Log       = MiniSpy_None;
 
 	memset(&Minispy.FilterMsgHeader, 0, sizeof(FILTER_MESSAGE_HEADER));
-	memset(Minispy.MessageBuffer, ' ', sizeof(TCHAR[128]));
+	memset(Minispy.MessageBuffer, ' ', sizeof(CHAR[128]));
 
 #if defined(FILE_MAPPING)
 	// Try to open the named file mapping identified by the map name.
@@ -1282,6 +1290,11 @@ _In_ LPVOID lpParameter
 	{
 		wprintf(L"MapViewOfFile failed w/err 0x%08lx\n", GetLastError());
 	}
+
+	wprintf(L"The file view is mapped\n");
+
+	// Read and display the content in view.
+	wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
 #endif
 
 #pragma warning(push)
@@ -1385,11 +1398,14 @@ _In_ LPVOID lpParameter
 		printf("GetMsg: Message from Minispy '%s'\n",string);
 
         #if defined(FILE_MAPPING)
-		pszMessage = string;
-		cbMessage = cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
+		if (pInOutView != NULL) {
+			mbstowcs(Text2, string, sizeof(CHAR)* 128);
+			pszMessage = Text2;
+			cbMessage = (wcslen(pszMessage) + 1) * sizeof(*pszMessage);
 
-		// Write the message to the server view.
-		memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
+			// Write the message to the server view.
+			memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
+		}
         #endif
 
 		//

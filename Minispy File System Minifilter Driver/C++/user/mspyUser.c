@@ -42,7 +42,11 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 
 #define MINISPY_NAME            L"MiniSpy"
 #define EXP_A
-
+#define FILE_MAPPING
+#if defined(FILE_MAPPING)
+extern HANDLE hMapFile;
+extern PVOID pInOutView;
+#endif
 DWORD
 InterpretCommand (
     _In_ int argc,
@@ -460,6 +464,12 @@ Main_Exit:
 
 		CloseHandle( thread2 );
 	}
+#endif
+#if defined(FILE_MAPPING)
+	if (hMapFile)
+		CloseHandle(hMapFile);
+	if (pInOutView)
+		CloseHandle(pInOutView);
 #endif
     if (INVALID_HANDLE_VALUE != port) {
         CloseHandle( port );

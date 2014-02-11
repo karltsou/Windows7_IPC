@@ -226,7 +226,7 @@ typedef struct _STATE_MACHINE {
 
 typedef struct _MINISPY_MESSAGE {
 	FILTER_MESSAGE_HEADER FilterMsgHeader;
-	TCHAR MessageBuffer[128];
+	CHAR MessageBuffer[128];
 } MINISPY_MESSAGE, *PMINISPY_MESSAGE;
 
 //
