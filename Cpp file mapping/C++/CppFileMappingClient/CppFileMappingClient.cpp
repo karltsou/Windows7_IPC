@@ -69,7 +69,7 @@
 // Unicode string message to be written to the mapped view. Its size in byte 
 // must be less than the view size (VIEW_SIZE).
 #define MESSAGE             L"Message from the client process."
-#define FILE_MAPPING_KERNELDRIVER
+//#define FILE_MAPPING_KERNELDRIVER
 
 // I/O declarification
 #include <string>
