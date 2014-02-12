@@ -42,6 +42,8 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 
 #define MINISPY_NAME            L"MiniSpy"
 #define EXP_A
+const   PWSTR ScannerPortName = L"\\ScannerPort";
+#define EXP_B
 #define FILE_MAPPING
 #if defined(FILE_MAPPING)
 extern HANDLE hMapFile;
@@ -190,13 +192,17 @@ Return Value:
     HANDLE port = INVALID_HANDLE_VALUE;
     HRESULT hResult = S_OK;
     DWORD result;
-    ULONG threadId;
-    HANDLE thread = NULL;
+    //ULONG threadId;
+    //HANDLE thread = NULL;
     LOG_CONTEXT context;
     CHAR inputChar;
 #if defined(EXP_A)
 	ULONG threadId2;
 	HANDLE thread2 = NULL;
+#endif
+#if defined (EXP_B)
+	HANDLE port2 = INVALID_HANDLE_VALUE;
+	HRESULT hResult2 = S_OK;
 #endif
     //
     //  Initialize handle in case of error
@@ -204,13 +210,32 @@ Return Value:
 
     context.ShutDown = NULL;
 
+#if defined (EXP_B)
+	//
+	//  Open a commuication channel to the filter
+	//
+
+	printf("Connecting to the filter2 port...\n");
+
+	hResult2 = FilterConnectCommunicationPort(ScannerPortName,
+		0,
+		NULL,
+		0,
+		NULL,
+		&port2);
+
+	if (IS_ERROR(hResult2)) {
+
+		printf("Could not connect to filter2 : 0x%08x\n", hResult2);
+		return 2;
+	}
+#endif
     //
     //  Open the port that is used to talk to
     //  MiniSpy.
     //
 
-    printf( "Connecting to filter's port...\n" );
-
+    printf( "Connecting to the filter1 port...\n" );
     hResult = FilterConnectCommunicationPort( MINISPY_PORT_NAME,
                                               0,
                                               NULL,
@@ -220,7 +245,7 @@ Return Value:
 
     if (IS_ERROR( hResult )) {
 
-        printf( "Could not connect to filter: 0x%08x\n", hResult );
+        printf( "Could not connect to filter1 : 0x%08x\n", hResult );
         DisplayError( hResult );
         goto Main_Exit;
     }
@@ -230,6 +255,9 @@ Return Value:
     //
 
     context.Port = port;
+#if defined (EXP_B)
+	context.Port2 = port2;
+#endif
     context.ShutDown = CreateSemaphore( NULL,
                                         0,
                                         1,
@@ -264,21 +292,21 @@ Return Value:
     // Create the thread to read the log records that are gathered
     // by MiniSpy.sys.
     //
-    printf( "Creating logging thread...\n" );
-    thread = CreateThread( NULL,
-                           0,
-                           RetrieveLogRecords,
-                           (LPVOID)&context,
-                           0,
-                           &threadId);
+    //printf( "Creating logging thread...\n" );
+    //thread = CreateThread( NULL,
+    //                       0,
+    //                       RetrieveLogRecords,
+    //                       (LPVOID)&context,
+    //                       0,
+    //                       &threadId);
 
-    if (!thread) {
+    //if (!thread) {
 
-        result = GetLastError();
-        printf( "Could not create logging thread: %d\n", result );
-        DisplayError( result );
-        goto Main_Exit;
-    }
+    //    result = GetLastError();
+    //    printf( "Could not create logging thread: %d\n", result );
+    //    DisplayError( result );
+    //    goto Main_Exit;
+    //}
 #if defined(EXP_A)
 	//
 	// Create the thread to read message that are sending
@@ -455,10 +483,10 @@ Main_Exit:
         CloseHandle( context.ShutDown );
     }
 
-    if (thread) {
-
-        CloseHandle( thread );
-    }
+    //if (thread) {
+	//
+    //    CloseHandle( thread );
+    //}
 #if defined(EXP_A)
 	if (thread2) {
 
@@ -470,6 +498,11 @@ Main_Exit:
 		CloseHandle(hMapFile);
 	if (pInOutView)
 		CloseHandle(pInOutView);
+#endif
+#if defined(EXP_B)
+	if (INVALID_HANDLE_VALUE != port2) {
+		CloseHandle(port2);
+	}
 #endif
     if (INVALID_HANDLE_VALUE != port) {
         CloseHandle( port );

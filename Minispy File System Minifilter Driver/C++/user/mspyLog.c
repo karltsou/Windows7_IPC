@@ -1271,11 +1271,13 @@ _In_ LPVOID lpParameter
 		FALSE,                  // Do not inherit the name
 		FULL_MAP_NAME           // File mapping name
 		);
-	if (hMapFile == NULL)
-	{
+
+	if (hMapFile == NULL) {
 		wprintf(L"OpenFileMapping failed w/err 0x%08lx\n", GetLastError());
 	}
-	wprintf(L"The file mapping (%s) is opened\n", FULL_MAP_NAME);
+	else {
+		wprintf(L"The file mapping (%s) is opened\n", FULL_MAP_NAME);
+	}
 
 	// Map a input view of the file mapping into the address space of the current
 	// process.
@@ -1286,15 +1288,16 @@ _In_ LPVOID lpParameter
 		IN_VIEW_OFFSET,         // Low-order DWORD of the file offset
 		VIEW_SIZE               // The number of bytes to map to view
 		);
-	if (pInOutView == NULL)
-	{
+
+	if (pInOutView == NULL) {
 		wprintf(L"MapViewOfFile failed w/err 0x%08lx\n", GetLastError());
 	}
+	else {
+		wprintf(L"The file view is mapped\n");
 
-	wprintf(L"The file view is mapped\n");
-
-	// Read and display the content in view.
-	wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
+		// Read and display the content in view.
+		wprintf(L"Read from the file mapping:\n\"%s\"\n", (PWSTR)pInOutView);
+	}
 #endif
 
 #pragma warning(push)
@@ -1408,8 +1411,50 @@ _In_ LPVOID lpParameter
 		}
         #endif
 
+        #if defined (EXP_B)
+		if (context->Port2 != NULL) {
+			commandMessage.Command = GetMiniSpySMStart;
+			bytesReturned = 0;
+
+			//
+			// Reaptly sending command to filter2 driver
+			//
+			hResult = FilterSendMessage(context->Port2,
+				&commandMessage,
+				sizeof(COMMAND_MESSAGE),
+				(LPVOID)&buffer,
+				sizeof(STATE_MACHINE),
+				&bytesReturned);
+
+			if (IS_ERROR(hResult)) {
+
+				if (HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE) == hResult) {
+
+					printf("GetMsg: The kernel component of filter2 has unloaded. Exiting\n");
+					break;
+				}
+				else {
+
+					if (hResult != HRESULT_FROM_WIN32(ERROR_NO_MORE_ITEMS)) {
+
+						printf("GetMsg: filter2 UNEXPECTED ERROR received: %x\n", hResult);
+					}
+
+					Sleep(POLL_INTERVAL);
+				}
+
+				continue;
+			}
+
+			pSM = (STATE_MACHINE *)&buffer;
+			printf("GetMsg: filter2 SM [ %d ]\n", pSM->State);
+			printf("GetMsg: filter2 SM Next [ %d ]\n", pSM->NextState);
+			printf("GetMsg: filter2 SM LOG [ %d ]\n", pSM->Log);
+			printf("GetMsg: filter2 (%d)bytes\n", bytesReturned);
+		}
+        #endif
 		//
-		// Keep updating Minispy SM
+		// follow next command will that send to filter driver
 		//
 		commandMessage.Command = GetMiniSpySMState;
 

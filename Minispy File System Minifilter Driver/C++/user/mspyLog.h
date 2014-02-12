@@ -24,7 +24,7 @@ Environment:
 #include "minispy.h"
 
 #define BUFFER_SIZE     4096
-
+#define EXP_B
 //
 //  Structure for managing current state.
 //
@@ -32,6 +32,9 @@ Environment:
 typedef struct _LOG_CONTEXT {
 
     HANDLE Port;
+#if defined(EXP_B)
+	HANDLE Port2;
+#endif
     BOOLEAN LogToScreen;
     BOOLEAN LogToFile;
     FILE   *OutputFile;

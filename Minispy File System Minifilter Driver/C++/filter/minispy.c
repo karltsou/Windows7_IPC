@@ -1532,7 +1532,7 @@ _In_  PVOID StartContext
 	LARGE_INTEGER timeout;
 	MINISPY_STATE_LOG smLog;
 	UINT16 i = 0;
-	TCHAR tag = '0';
+	CHAR tag = '0';
 
 	//
 	// Make compiler happy.
@@ -1553,7 +1553,7 @@ _In_  PVOID StartContext
 	// Empty Minispy
 	//
 	memset(&Minispy.FilterMsgHeader, 0, sizeof(FILTER_MESSAGE_HEADER));
-	memset(Minispy.MessageBuffer, ' ', sizeof(TCHAR[128]));
+	memset(Minispy.MessageBuffer, ' ', sizeof(CHAR[128]));
 //#pragma warning(push)
 //#pragma warning(disable:4127) // conditional expression is constant
 
