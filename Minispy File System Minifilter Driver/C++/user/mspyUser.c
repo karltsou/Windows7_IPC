@@ -225,9 +225,7 @@ Return Value:
 		&port2);
 
 	if (IS_ERROR(hResult2)) {
-
 		printf("Could not connect to filter2 : 0x%08x\n", hResult2);
-		return 2;
 	}
 #endif
     //
@@ -256,7 +254,9 @@ Return Value:
 
     context.Port = port;
 #if defined (EXP_B)
-	context.Port2 = port2;
+	if (port2 != INVALID_HANDLE_VALUE) {
+		context.Port2 = port2;
+	}
 #endif
     context.ShutDown = CreateSemaphore( NULL,
                                         0,
