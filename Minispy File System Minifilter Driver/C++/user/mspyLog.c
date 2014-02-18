@@ -1354,10 +1354,18 @@ _In_ LPVOID lpParameter
 		sm.State = pSM->State;
 		sm.NextState = pSM->NextState;
 
-		printf("GetMsg: Minispy SM [ %d ]\n", pSM->State);
-		printf("GetMsg: Minispy SM Next [ %d ]\n", pSM->NextState);
-		printf("GetMsg: Minispy SM LOG [ %d ]\n", pSM->Log);
-
+		if (!context->LogToFile)
+		{
+			printf("GetMsg: filter1 SM [ %d ]\n", pSM->State);
+			printf("GetMsg: filter1 SM Next [ %d ]\n", pSM->NextState);
+			printf("GetMsg: filter1 SM LOG [ %d ]\n", pSM->Log);
+		}
+		else
+		{
+			fprintf(context->OutputFile, "GetMsg: filter1 SM [ %d ]\n", pSM->State);
+			fprintf(context->OutputFile, "GetMsg: filter1 SM Next [ %d ]\n", pSM->NextState);
+			fprintf(context->OutputFile, "GetMsg: filter1 SM LOG [ %d ]\n", pSM->Log);
+		}
 
 		if (sm.State == MiniSpy_Stop) {
 			//
@@ -1447,14 +1455,23 @@ _In_ LPVOID lpParameter
 			}
 
 			pSM = (STATE_MACHINE *)&buffer;
-			printf("GetMsg: filter2 SM [ %d ]\n", pSM->State);
-			printf("GetMsg: filter2 SM Next [ %d ]\n", pSM->NextState);
-			printf("GetMsg: filter2 SM LOG [ %d ]\n", pSM->Log);
-			printf("GetMsg: filter2 (%d)bytes\n", bytesReturned);
+			if (!context->LogToFile) {
+				printf("GetMsg: filter2 SM [ %d ]\n", pSM->State);
+				printf("GetMsg: filter2 SM Next [ %d ]\n", pSM->NextState);
+				printf("GetMsg: filter2 SM LOG [ %d ]\n", pSM->Log);
+				printf("GetMsg: filter2 (%d)bytes\n", bytesReturned);
+			}
+			else
+			{
+				fprintf(context->OutputFile, "GetMsg: filter2 SM [ %d ]\n", pSM->State);
+				fprintf(context->OutputFile, "GetMsg: filter2 SM Next [ %d ]\n", pSM->NextState);
+				fprintf(context->OutputFile, "GetMsg: filter2 SM LOG [ %d ]\n", pSM->Log);
+				fprintf(context->OutputFile, "GetMsg: filter2 (%d)bytes\n", bytesReturned);
+			}
 		}
         #endif
 		//
-		// follow next command will that send to filter driver
+		// follow next command will send to filter driver
 		//
 		commandMessage.Command = GetMiniSpySMState;
 
