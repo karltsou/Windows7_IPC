@@ -196,13 +196,19 @@ Return Value:
     //HANDLE thread = NULL;
     LOG_CONTEXT context;
     CHAR inputChar;
+
 #if defined(EXP_A)
+
 	ULONG threadId2;
 	HANDLE thread2 = NULL;
+
 #endif
+
 #if defined (EXP_B)
+
 	HANDLE port2 = INVALID_HANDLE_VALUE;
 	HRESULT hResult2 = S_OK;
+
 #endif
     //
     //  Initialize handle in case of error
@@ -211,10 +217,10 @@ Return Value:
     context.ShutDown = NULL;
 
 #if defined (EXP_B)
+
 	//
 	//  Open a commuication channel to the filter
 	//
-
 	printf("Connecting to the filter2 port...\n");
 
 	hResult2 = FilterConnectCommunicationPort(ScannerPortName,
@@ -226,8 +232,11 @@ Return Value:
 
 	if (IS_ERROR(hResult2)) {
 		printf("Could not connect to filter2 : 0x%08x\n", hResult2);
+		port2 = INVALID_HANDLE_VALUE;
 	}
+
 #endif
+
     //
     //  Open the port that is used to talk to
     //  MiniSpy.
@@ -253,11 +262,13 @@ Return Value:
     //
 
     context.Port = port;
+
 #if defined (EXP_B)
-	if (port2 != INVALID_HANDLE_VALUE) {
-		context.Port2 = port2;
-	}
+
+	context.Port2 = port2;
+
 #endif
+
     context.ShutDown = CreateSemaphore( NULL,
                                         0,
                                         1,
@@ -307,7 +318,9 @@ Return Value:
     //    DisplayError( result );
     //    goto Main_Exit;
     //}
+
 #if defined(EXP_A)
+
 	//
 	// Create the thread to read message that are sending
 	// from MiniSpy.sys.
@@ -326,7 +339,9 @@ Return Value:
 		DisplayError(result);
 		goto Main_Exit;
 	}
+
 #endif
+
     //
     // Check to see what devices we are attached to from
     // previous runs of this program.
@@ -487,23 +502,33 @@ Main_Exit:
 	//
     //    CloseHandle( thread );
     //}
+
 #if defined(EXP_A)
+
 	if (thread2) {
 
 		CloseHandle( thread2 );
 	}
+
 #endif
+
 #if defined(FILE_MAPPING)
+
 	if (hMapFile)
 		CloseHandle(hMapFile);
 	if (pInOutView)
 		CloseHandle(pInOutView);
+
 #endif
+
 #if defined(EXP_B)
+
 	if (INVALID_HANDLE_VALUE != port2) {
 		CloseHandle(port2);
 	}
+
 #endif
+
     if (INVALID_HANDLE_VALUE != port) {
         CloseHandle( port );
     }

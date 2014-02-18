@@ -38,6 +38,7 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 // User Mode - File Mapping Object
 //
 #define FILE_MAPPING
+
 #if defined(FILE_MAPPING)
 // In terminal services: The name can have a "Global\" or "Local\"  prefix
 // to explicitly create the object in the global or session namespace. The
@@ -68,7 +69,9 @@ _Analysis_mode_(_Analysis_code_type_user_code_)
 //
 HANDLE hMapFile = NULL;
 PVOID pInOutView = NULL;
+
 #endif
+
 BOOLEAN
 TranslateFileTag(
     _In_ PLOG_RECORD logRecord
@@ -1229,7 +1232,9 @@ Return Value:
                   NULL,
                   FALSE );
 }
+
 #if defined(EXP_A)
+
 DWORD
 WINAPI
 ReadMsgFromMinispy(
@@ -1243,13 +1248,15 @@ _In_ LPVOID lpParameter
 	STATE_MACHINE sm, *pSM, buffer;
 	MINISPY_MESSAGE Minispy;
 	CHAR *string;
+
 #if defined(FILE_MAPPING)
-	//HANDLE hMapFile = NULL;
-	//PVOID pInOutView = NULL;
+
 	PWSTR pszMessage;
 	DWORD cbMessage;
 	WCHAR Text2[128];
+
 #endif
+
 	printf("ReadMsgFromMinispy is up\n");
 
 	//
@@ -1383,6 +1390,9 @@ _In_ LPVOID lpParameter
 			sizeof(MINISPY_MESSAGE),
 			NULL);
 
+		//
+		// Error handling ...
+		//
 		if (IS_ERROR(hResult)) {
 
 			if (HRESULT_FROM_WIN32(ERROR_INVALID_HANDLE) == hResult) {
@@ -1406,9 +1416,22 @@ _In_ LPVOID lpParameter
 		}
 
 		string = Minispy.MessageBuffer;
-		printf("GetMsg: Message from Minispy '%s'\n",string);
+
+		//
+		// Logs to File if it is needed.
+		//
+		if (!context->LogToFile) {
+			printf("GetMsg: Message from Minispy '%s'\n", string);
+		}
+		else {
+			fprintf(context->OutputFile, "GetMsg: Message from Minispy '%s'\n", string);
+		}
 
         #if defined(FILE_MAPPING)
+
+		//
+		// Fill message into user mode file-mapping object
+		//
 		if (pInOutView != NULL) {
 			mbstowcs(Text2, string, sizeof(CHAR)* 128);
 			pszMessage = Text2;
@@ -1417,10 +1440,15 @@ _In_ LPVOID lpParameter
 			// Write the message to the server view.
 			memcpy_s((pInOutView), VIEW_SIZE, pszMessage, cbMessage);
 		}
+
         #endif
 
         #if defined (EXP_B)
-		if (context->Port2 != NULL) {
+
+		//
+		// Message exchange filter 2 driver.
+		//
+		if (context->Port2 != INVALID_HANDLE_VALUE) {
 			commandMessage.Command = GetMiniSpySMStart;
 			bytesReturned = 0;
 
@@ -1455,6 +1483,10 @@ _In_ LPVOID lpParameter
 			}
 
 			pSM = (STATE_MACHINE *)&buffer;
+
+			//
+			// Logs to File if it is needed.
+			//
 			if (!context->LogToFile) {
 				printf("GetMsg: filter2 SM [ %d ]\n", pSM->State);
 				printf("GetMsg: filter2 SM Next [ %d ]\n", pSM->NextState);
@@ -1469,9 +1501,11 @@ _In_ LPVOID lpParameter
 				fprintf(context->OutputFile, "GetMsg: filter2 (%d)bytes\n", bytesReturned);
 			}
 		}
+
         #endif
+
 		//
-		// follow next command will send to filter driver
+		// follow next command that will send to filter driver
 		//
 		commandMessage.Command = GetMiniSpySMState;
 
@@ -1481,6 +1515,8 @@ _In_ LPVOID lpParameter
 	printf("GetMsg: Shutting down\n");
 	ReleaseSemaphore(context->ShutDown, 1, NULL);
 	printf("GetMsg: All done\n");
+
 	return 0;
 }
+
 #endif

@@ -32,9 +32,7 @@ Environment:
 typedef struct _LOG_CONTEXT {
 
     HANDLE Port;
-#if defined(EXP_B)
-	HANDLE Port2;
-#endif
+
     BOOLEAN LogToScreen;
     BOOLEAN LogToFile;
     FILE   *OutputFile;
@@ -48,6 +46,9 @@ typedef struct _LOG_CONTEXT {
     BOOLEAN CleaningUp;
     HANDLE  ShutDown;
 
+#if defined(EXP_B)
+	HANDLE Port2;
+#endif
 } LOG_CONTEXT, *PLOG_CONTEXT;
 
 //
